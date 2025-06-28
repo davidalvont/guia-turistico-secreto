@@ -35,8 +35,21 @@ const Admin = () => {
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated');
+    const userRole = localStorage.getItem('userRole');
+    
     if (!isAuthenticated) {
       navigate('/login');
+      return;
+    }
+    
+    // Verificar se é admin
+    if (userRole !== 'admin') {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para acessar esta página.",
+        variant: "destructive"
+      });
+      navigate('/dashboard');
       return;
     }
 
@@ -79,6 +92,7 @@ const Admin = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('userRole');
     toast({
       title: "Logout realizado",
       description: "Até logo!",
@@ -165,7 +179,7 @@ const Admin = () => {
               <MapPin className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Administração</h1>
+              <h1 className="text-xl font-bold text-gray-900">Você em Maceió - Administração</h1>
               <p className="text-sm text-gray-600">Gerenciar categorias e locais</p>
             </div>
           </div>

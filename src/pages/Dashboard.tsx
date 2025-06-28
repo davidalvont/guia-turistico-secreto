@@ -26,6 +26,7 @@ const Dashboard = () => {
   const [visitedSpots, setVisitedSpots] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<Category[]>([]);
   const [spots, setSpots] = useState<TouristSpot[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -33,6 +34,10 @@ const Dashboard = () => {
       navigate('/login');
       return;
     }
+    
+    // Verificar se é admin
+    const userRole = localStorage.getItem('userRole');
+    setIsAdmin(userRole === 'admin');
     
     // Carregar spots visitados do localStorage
     const savedVisited = localStorage.getItem('visitedSpots');
@@ -55,6 +60,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('userRole');
     toast({
       title: "Logout realizado",
       description: "Até logo!",
@@ -81,6 +87,13 @@ const Dashboard = () => {
     localStorage.setItem('visitedSpots', JSON.stringify(Array.from(newVisited)));
   };
 
+  const scrollToCategory = (categoryId: string) => {
+    const element = document.getElementById(`category-${categoryId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
       {/* Header */}
@@ -91,19 +104,21 @@ const Dashboard = () => {
               <MapPin className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Guia Turístico</h1>
-              <p className="text-sm text-gray-600">Explore lugares incríveis</p>
+              <h1 className="text-xl font-bold text-gray-900">Você em Maceió</h1>
+              <p className="text-sm text-gray-600">Descubra Maceió como um Local</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <Button 
-              onClick={() => navigate('/admin')}
-              variant="outline"
-              className="flex items-center space-x-2"
-            >
-              <Settings className="w-4 h-4" />
-              <span>Administração</span>
-            </Button>
+            {isAdmin && (
+              <Button 
+                onClick={() => navigate('/admin')}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Administração</span>
+              </Button>
+            )}
             <Button 
               onClick={handleLogout} 
               variant="outline" 
@@ -165,6 +180,45 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Acesso Rápido */}
+        {categories.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <MapPin className="w-5 h-5" />
+                <span>Acesso Rápido</span>
+              </CardTitle>
+              <CardDescription>
+                Clique para ir diretamente à categoria desejada
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {categories.map((category) => {
+                  const categorySpots = spots.filter(spot => spot.categoryId === category.id);
+                  if (categorySpots.length === 0) return null;
+                  
+                  return (
+                    <Card 
+                      key={category.id}
+                      className="cursor-pointer transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1 bg-gradient-to-br from-blue-50 to-indigo-100 border-blue-200"
+                      onClick={() => scrollToCategory(category.id)}
+                    >
+                      <CardContent className="p-4 text-center">
+                        <div className="text-3xl mb-2">{category.icon}</div>
+                        <h3 className="font-semibold text-gray-800">{category.name}</h3>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {categorySpots.length} {categorySpots.length === 1 ? 'local' : 'locais'}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tourist Spots por Categoria */}
         <div className="space-y-8">
           {categories.map((category) => {
@@ -172,7 +226,7 @@ const Dashboard = () => {
             if (categorySpots.length === 0) return null;
 
             return (
-              <div key={category.id}>
+              <div key={category.id} id={`category-${category.id}`}>
                 <div className="flex items-center space-x-3 mb-6">
                   <span className="text-3xl">{category.icon}</span>
                   <h2 className="text-2xl font-bold text-gray-900">{category.name}</h2>
@@ -200,6 +254,7 @@ const Dashboard = () => {
                             <div className="flex items-center space-x-1">
                               <Star className="w-4 h-4 text-yellow-400 fill-current" />
                               <span className="text-sm font-medium">{spot.rating}</span>
+                              <span className="text-xs text-gray-500 ml-1">Avaliação no Google</span>
                             </div>
                           </div>
                           <CardTitle className={`text-lg ${isVisited ? 'text-green-800' : ''}`}>
@@ -233,11 +288,7 @@ const Dashboard = () => {
             <div className="text-center py-12">
               <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma categoria encontrada</h3>
-              <p className="text-gray-600 mb-4">Acesse a área de administração para criar categorias e locais.</p>
-              <Button onClick={() => navigate('/admin')}>
-                <Settings className="w-4 h-4 mr-2" />
-                Ir para Administração
-              </Button>
+              <p className="text-gray-600 mb-4">Aguarde enquanto os administradores adicionam conteúdo.</p>
             </div>
           )}
         </div>
