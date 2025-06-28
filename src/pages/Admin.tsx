@@ -1,13 +1,13 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LogOut, MapPin, Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { LogOut, MapPin, Plus, Edit, Trash2, Save, X, Users, Eye } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Category {
   id: string;
@@ -24,14 +24,23 @@ interface TouristSpot {
   image: string;
 }
 
+interface User {
+  id: string;
+  username: string;
+  password: string;
+  role: 'admin' | 'user';
+  visitedSpots: string[];
+}
+
 const Admin = () => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [spots, setSpots] = useState<TouristSpot[]>([]);
-  const [editingCategory, setEditingCategory] = useState<string | null>(null);
-  const [editingSpot, setEditingSpot] = useState<string | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [newCategory, setNewCategory] = useState({ name: '', icon: '' });
   const [newSpot, setNewSpot] = useState({ title: '', categoryId: '', description: '', rating: 5, image: '' });
+  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' as 'admin' | 'user' });
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -42,7 +51,6 @@ const Admin = () => {
       return;
     }
     
-    // Verificar se é admin
     if (userRole !== 'admin') {
       toast({
         title: "Acesso negado",
@@ -56,6 +64,7 @@ const Admin = () => {
     // Carregar dados do localStorage
     const savedCategories = localStorage.getItem('categories');
     const savedSpots = localStorage.getItem('spots');
+    const savedUsers = localStorage.getItem('users');
 
     if (savedCategories) {
       setCategories(JSON.parse(savedCategories));
@@ -88,6 +97,18 @@ const Admin = () => {
       setSpots(defaultSpots);
       localStorage.setItem('spots', JSON.stringify(defaultSpots));
     }
+
+    if (savedUsers) {
+      setUsers(JSON.parse(savedUsers));
+    } else {
+      // Usuários padrão
+      const defaultUsers = [
+        { id: '1', username: 'admin', password: 'admin123', role: 'admin' as const, visitedSpots: [] },
+        { id: '2', username: 'usuario', password: 'user123', role: 'user' as const, visitedSpots: [] }
+      ];
+      setUsers(defaultUsers);
+      localStorage.setItem('users', JSON.stringify(defaultUsers));
+    }
   }, [navigate]);
 
   const handleLogout = () => {
@@ -108,6 +129,11 @@ const Admin = () => {
   const saveSpots = (newSpots: TouristSpot[]) => {
     setSpots(newSpots);
     localStorage.setItem('spots', JSON.stringify(newSpots));
+  };
+
+  const saveUsers = (newUsers: User[]) => {
+    setUsers(newUsers);
+    localStorage.setItem('users', JSON.stringify(newUsers));
   };
 
   const addCategory = () => {
@@ -169,6 +195,61 @@ const Admin = () => {
     });
   };
 
+  const addUser = () => {
+    if (!newUser.username.trim() || !newUser.password.trim()) return;
+    
+    // Check if username already exists
+    if (users.find(u => u.username === newUser.username)) {
+      toast({
+        title: "Erro",
+        description: "Nome de usuário já existe!",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const user: User = {
+      id: Date.now().toString(),
+      username: newUser.username,
+      password: newUser.password,
+      role: newUser.role,
+      visitedSpots: []
+    };
+    
+    saveUsers([...users, user]);
+    setNewUser({ username: '', password: '', role: 'user' });
+    toast({
+      title: "Usuário criado",
+      description: `Usuário "${user.username}" foi criado com sucesso!`,
+    });
+  };
+
+  const deleteUser = (id: string) => {
+    const updatedUsers = users.filter(u => u.id !== id);
+    saveUsers(updatedUsers);
+    toast({
+      title: "Usuário removido",
+      description: "Usuário foi removido com sucesso.",
+    });
+  };
+
+  const resetUserPassword = (userId: string) => {
+    const updatedUsers = users.map(u => 
+      u.id === userId ? { ...u, password: 'novasenha123' } : u
+    );
+    saveUsers(updatedUsers);
+    toast({
+      title: "Senha redefinida",
+      description: "Nova senha: novasenha123",
+    });
+  };
+
+  const viewUserDashboard = (user: User) => {
+    // Temporarily set user context for viewing
+    localStorage.setItem('viewingUser', JSON.stringify(user));
+    navigate('/dashboard?view=admin');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
       {/* Header */}
@@ -180,7 +261,7 @@ const Admin = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Você em Maceió - Administração</h1>
-              <p className="text-sm text-gray-600">Gerenciar categorias e locais</p>
+              <p className="text-sm text-gray-600">Gerenciar usuários, categorias e locais</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -203,178 +284,289 @@ const Admin = () => {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Gerenciar Categorias */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Plus className="w-5 h-5" />
-              <span>Gerenciar Categorias</span>
-            </CardTitle>
-            <CardDescription>
-              Adicione e gerencie as categorias de locais turísticos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div>
-                <Label htmlFor="category-name">Nome da Categoria</Label>
-                <Input
-                  id="category-name"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                  placeholder="Ex: Praias"
-                />
-              </div>
-              <div>
-                <Label htmlFor="category-icon">Ícone (Emoji)</Label>
-                <Input
-                  id="category-icon"
-                  value={newCategory.icon}
-                  onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
-                  placeholder="🏖️"
-                />
-              </div>
-              <div className="flex items-end">
-                <Button onClick={addCategory} className="w-full">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Adicionar Categoria
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categories.map((category) => (
-                <Card key={category.id} className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-2xl">{category.icon}</span>
-                      <span className="font-medium">{category.name}</span>
-                    </div>
-                    <Button
-                      onClick={() => deleteCategory(category.id)}
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700"
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="users">Usuários</TabsTrigger>
+            <TabsTrigger value="categories">Categorias</TabsTrigger>
+            <TabsTrigger value="spots">Locais</TabsTrigger>
+          </TabsList>
+          
+          {/* Gerenciar Usuários */}
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Users className="w-5 h-5" />
+                  <span>Gerenciar Usuários</span>
+                </CardTitle>
+                <CardDescription>
+                  Criar, visualizar e gerenciar usuários do sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div>
+                    <Label htmlFor="user-username">Nome de Usuário</Label>
+                    <Input
+                      id="user-username"
+                      value={newUser.username}
+                      onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                      placeholder="Ex: joao"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="user-password">Senha</Label>
+                    <Input
+                      id="user-password"
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      placeholder="Senha"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="user-role">Função</Label>
+                    <select
+                      id="user-role"
+                      value={newUser.role}
+                      onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'admin' | 'user' })}
+                      className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <option value="user">Usuário</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={addUser} className="w-full">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Criar Usuário
                     </Button>
                   </div>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
 
-        <Separator className="my-8" />
-
-        {/* Gerenciar Locais */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <MapPin className="w-5 h-5" />
-              <span>Gerenciar Locais</span>
-            </CardTitle>
-            <CardDescription>
-              Adicione e gerencie os locais turísticos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-              <div>
-                <Label htmlFor="spot-title">Nome do Local</Label>
-                <Input
-                  id="spot-title"
-                  value={newSpot.title}
-                  onChange={(e) => setNewSpot({ ...newSpot, title: e.target.value })}
-                  placeholder="Ex: Praia do Segredo"
-                />
-              </div>
-              <div>
-                <Label htmlFor="spot-category">Categoria</Label>
-                <select
-                  id="spot-category"
-                  value={newSpot.categoryId}
-                  onChange={(e) => setNewSpot({ ...newSpot, categoryId: e.target.value })}
-                  className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Selecione uma categoria</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="spot-description">Descrição</Label>
-                <Input
-                  id="spot-description"
-                  value={newSpot.description}
-                  onChange={(e) => setNewSpot({ ...newSpot, description: e.target.value })}
-                  placeholder="Descrição do local"
-                />
-              </div>
-              <div>
-                <Label htmlFor="spot-rating">Avaliação</Label>
-                <Input
-                  id="spot-rating"
-                  type="number"
-                  min="1"
-                  max="5"
-                  step="0.1"
-                  value={newSpot.rating}
-                  onChange={(e) => setNewSpot({ ...newSpot, rating: parseFloat(e.target.value) })}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button onClick={addSpot} className="w-full">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Adicionar Local
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {categories.map((category) => {
-                const categorySpots = spots.filter(spot => spot.categoryId === category.id);
-                if (categorySpots.length === 0) return null;
-                
-                return (
-                  <div key={category.id}>
-                    <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2">
-                      <span>{category.icon}</span>
-                      <span>{category.name}</span>
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {categorySpots.map((spot) => (
-                        <Card key={spot.id} className="p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xl">{spot.image}</span>
-                              <div>
-                                <h4 className="font-medium">{spot.title}</h4>
-                                <p className="text-sm text-gray-600">⭐ {spot.rating}</p>
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => deleteSpot(spot.id)}
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                <div className="space-y-4">
+                  {users.map((user) => (
+                    <Card key={user.id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-3 h-3 rounded-full ${user.role === 'admin' ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                          <div>
+                            <h4 className="font-medium">{user.username}</h4>
+                            <p className="text-sm text-gray-600">
+                              {user.role === 'admin' ? 'Administrador' : 'Usuário'} • 
+                              {user.visitedSpots.length} locais visitados
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-700">{spot.description}</p>
-                        </Card>
-                      ))}
-                    </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            onClick={() => viewUserDashboard(user)}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center space-x-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>Ver Dashboard</span>
+                          </Button>
+                          <Button
+                            onClick={() => resetUserPassword(user.id)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Redefinir Senha
+                          </Button>
+                          <Button
+                            onClick={() => deleteUser(user.id)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Gerenciar Categorias */}
+          <TabsContent value="categories">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Plus className="w-5 h-5" />
+                  <span>Gerenciar Categorias</span>
+                </CardTitle>
+                <CardDescription>
+                  Adicione e gerencie as categorias de locais turísticos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div>
+                    <Label htmlFor="category-name">Nome da Categoria</Label>
+                    <Input
+                      id="category-name"
+                      value={newCategory.name}
+                      onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                      placeholder="Ex: Praias"
+                    />
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                  <div>
+                    <Label htmlFor="category-icon">Ícone (Emoji)</Label>
+                    <Input
+                      id="category-icon"
+                      value={newCategory.icon}
+                      onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
+                      placeholder="🏖️"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={addCategory} className="w-full">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Categoria
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {categories.map((category) => (
+                    <Card key={category.id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-2xl">{category.icon}</span>
+                          <span className="font-medium">{category.name}</span>
+                        </div>
+                        <Button
+                          onClick={() => deleteCategory(category.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Gerenciar Locais */}
+          <TabsContent value="spots">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <MapPin className="w-5 h-5" />
+                  <span>Gerenciar Locais</span>
+                </CardTitle>
+                <CardDescription>
+                  Adicione e gerencie os locais turísticos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                  <div>
+                    <Label htmlFor="spot-title">Nome do Local</Label>
+                    <Input
+                      id="spot-title"
+                      value={newSpot.title}
+                      onChange={(e) => setNewSpot({ ...newSpot, title: e.target.value })}
+                      placeholder="Ex: Praia do Segredo"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="spot-category">Categoria</Label>
+                    <select
+                      id="spot-category"
+                      value={newSpot.categoryId}
+                      onChange={(e) => setNewSpot({ ...newSpot, categoryId: e.target.value })}
+                      className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Selecione uma categoria</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="spot-description">Descrição</Label>
+                    <Input
+                      id="spot-description"
+                      value={newSpot.description}
+                      onChange={(e) => setNewSpot({ ...newSpot, description: e.target.value })}
+                      placeholder="Descrição do local"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="spot-rating">Avaliação</Label>
+                    <Input
+                      id="spot-rating"
+                      type="number"
+                      min="1"
+                      max="5"
+                      step="0.1"
+                      value={newSpot.rating}
+                      onChange={(e) => setNewSpot({ ...newSpot, rating: parseFloat(e.target.value) })}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={addSpot} className="w-full">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Local
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {categories.map((category) => {
+                    const categorySpots = spots.filter(spot => spot.categoryId === category.id);
+                    if (categorySpots.length === 0) return null;
+                    
+                    return (
+                      <div key={category.id}>
+                        <h3 className="text-lg font-semibold mb-3 flex items-center space-x-2">
+                          <span>{category.icon}</span>
+                          <span>{category.name}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {categorySpots.map((spot) => (
+                            <Card key={spot.id} className="p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-xl">{spot.image}</span>
+                                  <div>
+                                    <h4 className="font-medium">{spot.title}</h4>
+                                    <p className="text-sm text-gray-600">⭐ {spot.rating}</p>
+                                  </div>
+                                </div>
+                                <Button
+                                  onClick={() => deleteSpot(spot.id)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <p className="text-sm text-gray-700">{spot.description}</p>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

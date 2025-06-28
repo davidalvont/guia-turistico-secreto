@@ -8,6 +8,14 @@ import { Label } from '@/components/ui/label';
 import { MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
+interface User {
+  id: string;
+  username: string;
+  password: string;
+  role: 'admin' | 'user';
+  visitedSpots: string[];
+}
+
 const Login = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
@@ -16,21 +24,32 @@ const Login = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Sistema simples de autenticação - em produção usar autenticação real
-    if (username === 'admin' && password === 'admin123') {
+    // Carregar usuários do localStorage
+    const savedUsers = localStorage.getItem('users');
+    let users: User[] = [];
+    
+    if (savedUsers) {
+      users = JSON.parse(savedUsers);
+    } else {
+      // Usuários padrão se não existir no localStorage
+      users = [
+        { id: '1', username: 'admin', password: 'admin123', role: 'admin', visitedSpots: [] },
+        { id: '2', username: 'usuario', password: 'user123', role: 'user', visitedSpots: [] }
+      ];
+      localStorage.setItem('users', JSON.stringify(users));
+    }
+    
+    // Verificar credenciais
+    const user = users.find(u => u.username === username && u.password === password);
+    
+    if (user) {
       localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userRole', 'admin');
+      localStorage.setItem('userRole', user.role);
+      localStorage.setItem('currentUserId', user.id);
+      
       toast({
         title: "Login realizado com sucesso!",
-        description: "Bem-vindo, Administrador!",
-      });
-      navigate('/dashboard');
-    } else if (username === 'usuario' && password === 'user123') {
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userRole', 'user');
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo!",
+        description: user.role === 'admin' ? "Bem-vindo, Administrador!" : "Bem-vindo!",
       });
       navigate('/dashboard');
     } else {
@@ -82,9 +101,12 @@ const Login = () => {
           </form>
           
           <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-            <p className="font-medium mb-2">Credenciais de teste:</p>
-            <p><strong>Admin:</strong> admin / admin123</p>
-            <p><strong>Usuário:</strong> usuario / user123</p>
+            <p className="font-medium mb-2">Sistema de usuários:</p>
+            <p><strong>Admin:</strong> Gerencia usuários, categorias e locais</p>
+            <p><strong>Usuário:</strong> Marca locais como visitados</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Credenciais padrão: admin/admin123 ou usuario/user123
+            </p>
           </div>
         </CardContent>
       </Card>

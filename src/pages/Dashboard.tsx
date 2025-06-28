@@ -1,9 +1,9 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, MapPin, Star, Settings } from 'lucide-react';
+import { LogOut, MapPin, Star, Settings, Eye } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface Category {
@@ -21,12 +21,23 @@ interface TouristSpot {
   image: string;
 }
 
+interface User {
+  id: string;
+  username: string;
+  password: string;
+  role: 'admin' | 'user';
+  visitedSpots: string[];
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [visitedSpots, setVisitedSpots] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<Category[]>([]);
   const [spots, setSpots] = useState<TouristSpot[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminViewing, setIsAdminViewing] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -37,12 +48,26 @@ const Dashboard = () => {
     
     // Verificar se é admin
     const userRole = localStorage.getItem('userRole');
-    setIsAdmin(userRole === 'admin');
+    const isAdminUser = userRole === 'admin';
+    setIsAdmin(isAdminUser);
     
-    // Carregar spots visitados do localStorage
-    const savedVisited = localStorage.getItem('visitedSpots');
-    if (savedVisited) {
-      setVisitedSpots(new Set(JSON.parse(savedVisited)));
+    // Verificar se admin está visualizando dashboard de usuário
+    const isAdminViewMode = location.search.includes('view=admin');
+    const viewingUser = localStorage.getItem('viewingUser');
+    
+    if (isAdminViewMode && viewingUser && isAdminUser) {
+      const user = JSON.parse(viewingUser);
+      setCurrentUser(user);
+      setIsAdminViewing(true);
+      setVisitedSpots(new Set(user.visitedSpots));
+      localStorage.removeItem('viewingUser'); // Limpar após usar
+    } else {
+      // Modo normal - carregar dados do usuário atual
+      setIsAdminViewing(false);
+      const savedVisited = localStorage.getItem('visitedSpots');
+      if (savedVisited) {
+        setVisitedSpots(new Set(JSON.parse(savedVisited)));
+      }
     }
 
     // Carregar categorias e spots
@@ -56,11 +81,12 @@ const Dashboard = () => {
     if (savedSpots) {
       setSpots(JSON.parse(savedSpots));
     }
-  }, [navigate]);
+  }, [navigate, location]);
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('viewingUser');
     toast({
       title: "Logout realizado",
       description: "Até logo!",
@@ -69,6 +95,16 @@ const Dashboard = () => {
   };
 
   const toggleVisited = (spotId: string) => {
+    // Só permite marcar/desmarcar se não for admin visualizando
+    if (isAdminViewing) {
+      toast({
+        title: "Ação não permitida",
+        description: "Administradores não podem marcar locais como visitados para outros usuários.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const newVisited = new Set(visitedSpots);
     if (newVisited.has(spotId)) {
       newVisited.delete(spotId);
@@ -104,12 +140,31 @@ const Dashboard = () => {
               <MapPin className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Você em Maceió</h1>
-              <p className="text-sm text-gray-600">Descubra Maceió como um Local</p>
+              <h1 className="text-xl font-bold text-gray-900">
+                Você em Maceió
+                {isAdminViewing && currentUser && (
+                  <span className="text-sm text-orange-600 ml-2">
+                    (Visualizando como: {currentUser.username})
+                  </span>
+                )}
+              </h1>
+              <p className="text-sm text-gray-600">
+                {isAdminViewing ? 'Visualização administrativa' : 'Descubra Maceió como um Local'}
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            {isAdmin && (
+            {isAdminViewing && (
+              <Button 
+                onClick={() => navigate('/admin')}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Voltar para Admin</span>
+              </Button>
+            )}
+            {isAdmin && !isAdminViewing && (
               <Button 
                 onClick={() => navigate('/admin')}
                 variant="outline"
@@ -130,6 +185,24 @@ const Dashboard = () => {
           </div>
         </div>
       </header>
+
+      {/* Alert for admin viewing mode */}
+      {isAdminViewing && (
+        <div className="bg-orange-100 border-l-4 border-orange-500 p-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <Eye className="h-5 w-5 text-orange-500" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-orange-700">
+                  Você está visualizando o dashboard como administrador. Não é possível marcar locais como visitados neste modo.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
@@ -239,12 +312,12 @@ const Dashboard = () => {
                     return (
                       <Card 
                         key={spot.id} 
-                        className={`cursor-pointer transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1 ${
+                        className={`transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1 ${
                           isVisited 
                             ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-green-100' 
                             : 'hover:shadow-xl'
-                        }`}
-                        onClick={() => toggleVisited(spot.id)}
+                        } ${!isAdminViewing ? 'cursor-pointer' : ''}`}
+                        onClick={() => !isAdminViewing && toggleVisited(spot.id)}
                       >
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
@@ -270,9 +343,16 @@ const Dashboard = () => {
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                               isVisited 
                                 ? 'bg-green-200 text-green-800' 
-                                : 'bg-blue-100 text-blue-800'
+                                : isAdminViewing 
+                                  ? 'bg-gray-100 text-gray-600'
+                                  : 'bg-blue-100 text-blue-800'
                             }`}>
-                              {isVisited ? 'Visitado' : 'Clique para marcar como visitado'}
+                              {isVisited 
+                                ? 'Visitado' 
+                                : isAdminViewing 
+                                  ? 'Visualização apenas' 
+                                  : 'Clique para marcar como visitado'
+                              }
                             </span>
                           </div>
                         </CardContent>
