@@ -8,29 +8,7 @@ import { LogOut, MapPin, Plus, Edit, Trash2, Save, X, Users, Eye } from 'lucide-
 import { toast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface Category {
-  id: string;
-  name: string;
-  icon: string;
-}
-
-interface TouristSpot {
-  id: string;
-  title: string;
-  categoryId: string;
-  description: string;
-  rating: number;
-  image: string;
-}
-
-interface User {
-  id: string;
-  username: string;
-  password: string;
-  role: 'admin' | 'user';
-  visitedSpots: string[];
-}
+import { Category, TouristSpot, User } from '@/types';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -38,9 +16,19 @@ const Admin = () => {
   const [spots, setSpots] = useState<TouristSpot[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [newCategory, setNewCategory] = useState({ name: '', icon: '' });
-  const [newSpot, setNewSpot] = useState({ title: '', categoryId: '', description: '', rating: 5, image: '' });
+  const [newSpot, setNewSpot] = useState({ 
+    title: '', 
+    categoryId: '', 
+    description: '', 
+    rating: 5, 
+    image: '',
+    googleMapsLink: '',
+    socialMediaLink: '',
+    whatsappLink: ''
+  });
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' as 'admin' | 'user' });
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingSpot, setEditingSpot] = useState<TouristSpot | null>(null);
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -153,6 +141,24 @@ const Admin = () => {
     });
   };
 
+  const editCategory = (category: Category) => {
+    setEditingCategory(category);
+  };
+
+  const saveEditCategory = () => {
+    if (!editingCategory || !editingCategory.name.trim()) return;
+    
+    const updatedCategories = categories.map(c => 
+      c.id === editingCategory.id ? editingCategory : c
+    );
+    saveCategories(updatedCategories);
+    setEditingCategory(null);
+    toast({
+      title: "Categoria atualizada",
+      description: "Categoria foi editada com sucesso!",
+    });
+  };
+
   const deleteCategory = (id: string) => {
     const updatedCategories = categories.filter(c => c.id !== id);
     const updatedSpots = spots.filter(s => s.categoryId !== id);
@@ -175,14 +181,49 @@ const Admin = () => {
       categoryId: newSpot.categoryId,
       description: newSpot.description,
       rating: newSpot.rating,
-      image: newSpot.image || '📍'
+      image: newSpot.image || '📍',
+      googleMapsLink: newSpot.googleMapsLink || undefined,
+      socialMediaLink: newSpot.socialMediaLink || undefined,
+      whatsappLink: newSpot.whatsappLink || undefined
     };
     
     saveSpots([...spots, spot]);
-    setNewSpot({ title: '', categoryId: '', description: '', rating: 5, image: '' });
+    setNewSpot({ 
+      title: '', 
+      categoryId: '', 
+      description: '', 
+      rating: 5, 
+      image: '',
+      googleMapsLink: '',
+      socialMediaLink: '',
+      whatsappLink: ''
+    });
     toast({
       title: "Local adicionado",
       description: `Local "${spot.title}" foi criado com sucesso!`,
+    });
+  };
+
+  const editSpot = (spot: TouristSpot) => {
+    setEditingSpot(spot);
+  };
+
+  const saveEditSpot = () => {
+    if (!editingSpot || !editingSpot.title.trim() || !editingSpot.categoryId) return;
+    
+    const updatedSpots = spots.map(s => 
+      s.id === editingSpot.id ? {
+        ...editingSpot,
+        googleMapsLink: editingSpot.googleMapsLink || undefined,
+        socialMediaLink: editingSpot.socialMediaLink || undefined,
+        whatsappLink: editingSpot.whatsappLink || undefined
+      } : s
+    );
+    saveSpots(updatedSpots);
+    setEditingSpot(null);
+    toast({
+      title: "Local atualizado",
+      description: "Local foi editado com sucesso!",
     });
   };
 
@@ -354,7 +395,7 @@ const Admin = () => {
                             <h4 className="font-medium">{user.username}</h4>
                             <p className="text-sm text-gray-600">
                               {user.role === 'admin' ? 'Administrador' : 'Usuário'} • 
-                              {user.visitedSpots.length} locais visitados
+                              {user.visitedSpots?.length || 0} locais visitados
                             </p>
                           </div>
                         </div>
@@ -435,20 +476,54 @@ const Admin = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categories.map((category) => (
                     <Card key={category.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-2xl">{category.icon}</span>
-                          <span className="font-medium">{category.name}</span>
+                      {editingCategory?.id === category.id ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={editingCategory.name}
+                            onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                            placeholder="Nome da categoria"
+                          />
+                          <Input
+                            value={editingCategory.icon}
+                            onChange={(e) => setEditingCategory({ ...editingCategory, icon: e.target.value })}
+                            placeholder="🏖️"
+                          />
+                          <div className="flex space-x-2">
+                            <Button onClick={saveEditCategory} size="sm" className="flex-1">
+                              <Save className="w-4 h-4 mr-1" />
+                              Salvar
+                            </Button>
+                            <Button onClick={() => setEditingCategory(null)} variant="outline" size="sm">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <Button
-                          onClick={() => deleteCategory(category.id)}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-2xl">{category.icon}</span>
+                            <span className="font-medium">{category.name}</span>
+                          </div>
+                          <div className="flex space-x-1">
+                            <Button
+                              onClick={() => editCategory(category)}
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => deleteCategory(category.id)}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </Card>
                   ))}
                 </div>
@@ -469,62 +544,103 @@ const Admin = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                  <div>
-                    <Label htmlFor="spot-title">Nome do Local</Label>
-                    <Input
-                      id="spot-title"
-                      value={newSpot.title}
-                      onChange={(e) => setNewSpot({ ...newSpot, title: e.target.value })}
-                      placeholder="Ex: Praia do Segredo"
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Informações Básicas</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="spot-title">Nome do Local</Label>
+                        <Input
+                          id="spot-title"
+                          value={newSpot.title}
+                          onChange={(e) => setNewSpot({ ...newSpot, title: e.target.value })}
+                          placeholder="Ex: Praia do Segredo"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="spot-category">Categoria</Label>
+                        <select
+                          id="spot-category"
+                          value={newSpot.categoryId}
+                          onChange={(e) => setNewSpot({ ...newSpot, categoryId: e.target.value })}
+                          className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="">Selecione uma categoria</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor="spot-description">Descrição</Label>
+                        <Input
+                          id="spot-description"
+                          value={newSpot.description}
+                          onChange={(e) => setNewSpot({ ...newSpot, description: e.target.value })}
+                          placeholder="Descrição do local"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="spot-rating">Avaliação</Label>
+                        <Input
+                          id="spot-rating"
+                          type="number"
+                          min="1"
+                          max="5"
+                          step="0.1"
+                          value={newSpot.rating}
+                          onChange={(e) => setNewSpot({ ...newSpot, rating: parseFloat(e.target.value) })}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="spot-category">Categoria</Label>
-                    <select
-                      id="spot-category"
-                      value={newSpot.categoryId}
-                      onChange={(e) => setNewSpot({ ...newSpot, categoryId: e.target.value })}
-                      className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="">Selecione uma categoria</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="spot-description">Descrição</Label>
-                    <Input
-                      id="spot-description"
-                      value={newSpot.description}
-                      onChange={(e) => setNewSpot({ ...newSpot, description: e.target.value })}
-                      placeholder="Descrição do local"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="spot-rating">Avaliação</Label>
-                    <Input
-                      id="spot-rating"
-                      type="number"
-                      min="1"
-                      max="5"
-                      step="0.1"
-                      value={newSpot.rating}
-                      onChange={(e) => setNewSpot({ ...newSpot, rating: parseFloat(e.target.value) })}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={addSpot} className="w-full">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Local
-                    </Button>
+                  
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Links (Opcionais)</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="spot-maps">Link do Google Maps</Label>
+                        <Input
+                          id="spot-maps"
+                          value={newSpot.googleMapsLink}
+                          onChange={(e) => setNewSpot({ ...newSpot, googleMapsLink: e.target.value })}
+                          placeholder="https://maps.google.com/..."
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="spot-social">Link das Redes Sociais</Label>
+                        <Input
+                          id="spot-social"
+                          value={newSpot.socialMediaLink}
+                          onChange={(e) => setNewSpot({ ...newSpot, socialMediaLink: e.target.value })}
+                          placeholder="https://instagram.com/..."
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="spot-whatsapp">Link do WhatsApp</Label>
+                        <Input
+                          id="spot-whatsapp"
+                          value={newSpot.whatsappLink}
+                          onChange={(e) => setNewSpot({ ...newSpot, whatsappLink: e.target.value })}
+                          placeholder="https://wa.me/..."
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
+                
+                <div className="flex justify-center">
+                  <Button onClick={addSpot} className="w-full md:w-auto">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Local
+                  </Button>
+                </div>
 
-                <div className="space-y-4">
+                <Separator className="my-6" />
+
+                <div className="space-y-6">
                   {categories.map((category) => {
                     const categorySpots = spots.filter(spot => spot.categoryId === category.id);
                     if (categorySpots.length === 0) return null;
@@ -535,27 +651,115 @@ const Admin = () => {
                           <span>{category.icon}</span>
                           <span>{category.name}</span>
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {categorySpots.map((spot) => (
                             <Card key={spot.id} className="p-4">
-                              <div className="flex justify-between items-start mb-2">
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-xl">{spot.image}</span>
-                                  <div>
-                                    <h4 className="font-medium">{spot.title}</h4>
-                                    <p className="text-sm text-gray-600">⭐ {spot.rating}</p>
+                              {editingSpot?.id === spot.id ? (
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Input
+                                      value={editingSpot.title}
+                                      onChange={(e) => setEditingSpot({ ...editingSpot, title: e.target.value })}
+                                      placeholder="Nome do local"
+                                    />
+                                    <select
+                                      value={editingSpot.categoryId}
+                                      onChange={(e) => setEditingSpot({ ...editingSpot, categoryId: e.target.value })}
+                                      className="h-10 px-3 py-2 border border-gray-300 rounded-md"
+                                    >
+                                      {categories.map((cat) => (
+                                        <option key={cat.id} value={cat.id}>
+                                          {cat.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <Input
+                                    value={editingSpot.description}
+                                    onChange={(e) => setEditingSpot({ ...editingSpot, description: e.target.value })}
+                                    placeholder="Descrição"
+                                  />
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="5"
+                                      step="0.1"
+                                      value={editingSpot.rating}
+                                      onChange={(e) => setEditingSpot({ ...editingSpot, rating: parseFloat(e.target.value) })}
+                                    />
+                                    <Input
+                                      value={editingSpot.image}
+                                      onChange={(e) => setEditingSpot({ ...editingSpot, image: e.target.value })}
+                                      placeholder="Emoji"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Input
+                                      value={editingSpot.googleMapsLink || ''}
+                                      onChange={(e) => setEditingSpot({ ...editingSpot, googleMapsLink: e.target.value })}
+                                      placeholder="Link Google Maps"
+                                    />
+                                    <Input
+                                      value={editingSpot.socialMediaLink || ''}
+                                      onChange={(e) => setEditingSpot({ ...editingSpot, socialMediaLink: e.target.value })}
+                                      placeholder="Link Redes Sociais"
+                                    />
+                                    <Input
+                                      value={editingSpot.whatsappLink || ''}
+                                      onChange={(e) => setEditingSpot({ ...editingSpot, whatsappLink: e.target.value })}
+                                      placeholder="Link WhatsApp"
+                                    />
+                                  </div>
+                                  <div className="flex space-x-2">
+                                    <Button onClick={saveEditSpot} size="sm" className="flex-1">
+                                      <Save className="w-4 h-4 mr-1" />
+                                      Salvar
+                                    </Button>
+                                    <Button onClick={() => setEditingSpot(null)} variant="outline" size="sm">
+                                      <X className="w-4 h-4" />
+                                    </Button>
                                   </div>
                                 </div>
-                                <Button
-                                  onClick={() => deleteSpot(spot.id)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                              <p className="text-sm text-gray-700">{spot.description}</p>
+                              ) : (
+                                <>
+                                  <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-xl">{spot.image}</span>
+                                      <div>
+                                        <h4 className="font-medium">{spot.title}</h4>
+                                        <p className="text-sm text-gray-600">⭐ {spot.rating}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex space-x-1">
+                                      <Button
+                                        onClick={() => editSpot(spot)}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-blue-600 hover:text-blue-700"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        onClick={() => deleteSpot(spot.id)}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-2">{spot.description}</p>
+                                  {(spot.googleMapsLink || spot.socialMediaLink || spot.whatsappLink) && (
+                                    <div className="flex flex-wrap gap-1 text-xs">
+                                      {spot.googleMapsLink && <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">📍 Maps</span>}
+                                      {spot.socialMediaLink && <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">📱 Social</span>}
+                                      {spot.whatsappLink && <span className="bg-green-100 text-green-700 px-2 py-1 rounded">💬 WhatsApp</span>}
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </Card>
                           ))}
                         </div>

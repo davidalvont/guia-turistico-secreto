@@ -1,33 +1,11 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, MapPin, Star, Settings, Eye } from 'lucide-react';
+import { LogOut, MapPin, Star, Settings, Eye, ExternalLink, MessageCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-
-interface Category {
-  id: string;
-  name: string;
-  icon: string;
-}
-
-interface TouristSpot {
-  id: string;
-  title: string;
-  categoryId: string;
-  description: string;
-  rating: number;
-  image: string;
-}
-
-interface User {
-  id: string;
-  username: string;
-  password: string;
-  role: 'admin' | 'user';
-  visitedSpots: string[];
-}
+import BackToTopButton from '@/components/BackToTopButton';
+import { Category, TouristSpot, User } from '@/types';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -128,6 +106,10 @@ const Dashboard = () => {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const openExternalLink = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -309,6 +291,8 @@ const Dashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {categorySpots.map((spot) => {
                     const isVisited = visitedSpots.has(spot.id);
+                    const hasLinks = spot.googleMapsLink || spot.socialMediaLink || spot.whatsappLink;
+                    
                     return (
                       <Card 
                         key={spot.id} 
@@ -316,8 +300,7 @@ const Dashboard = () => {
                           isVisited 
                             ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-green-100' 
                             : 'hover:shadow-xl'
-                        } ${!isAdminViewing ? 'cursor-pointer' : ''}`}
-                        onClick={() => !isAdminViewing && toggleVisited(spot.id)}
+                        }`}
                       >
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
@@ -336,24 +319,74 @@ const Dashboard = () => {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className={`text-sm ${isVisited ? 'text-green-700' : 'text-gray-600'}`}>
+                          <p className={`text-sm mb-3 ${isVisited ? 'text-green-700' : 'text-gray-600'}`}>
                             {spot.description}
                           </p>
+                          
+                          {/* Links externos */}
+                          {hasLinks && (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {spot.googleMapsLink && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openExternalLink(spot.googleMapsLink!)}
+                                  className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
+                                >
+                                  <MapPin className="w-3 h-3" />
+                                  <span>Maps</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {spot.socialMediaLink && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openExternalLink(spot.socialMediaLink!)}
+                                  className="flex items-center space-x-1 text-purple-600 hover:text-purple-700"
+                                >
+                                  <Star className="w-3 h-3" />
+                                  <span>Social</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {spot.whatsappLink && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openExternalLink(spot.whatsappLink!)}
+                                  className="flex items-center space-x-1 text-green-600 hover:text-green-700"
+                                >
+                                  <MessageCircle className="w-3 h-3" />
+                                  <span>WhatsApp</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Botão para marcar como visitado */}
                           <div className="mt-3">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              isVisited 
-                                ? 'bg-green-200 text-green-800' 
-                                : isAdminViewing 
-                                  ? 'bg-gray-100 text-gray-600'
-                                  : 'bg-blue-100 text-blue-800'
-                            }`}>
+                            <Button
+                              onClick={() => toggleVisited(spot.id)}
+                              variant={isVisited ? "default" : "outline"}
+                              size="sm"
+                              disabled={isAdminViewing}
+                              className={`w-full ${
+                                isVisited 
+                                  ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                  : isAdminViewing 
+                                    ? 'cursor-not-allowed opacity-50'
+                                    : 'hover:bg-blue-50 text-blue-700 border-blue-200'
+                              }`}
+                            >
                               {isVisited 
-                                ? 'Visitado' 
+                                ? 'Visitado ✓' 
                                 : isAdminViewing 
                                   ? 'Visualização apenas' 
-                                  : 'Clique para marcar como visitado'
+                                  : 'Marcar como visitado'
                               }
-                            </span>
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
@@ -373,6 +406,9 @@ const Dashboard = () => {
           )}
         </div>
       </main>
+
+      {/* Botão voltar ao topo */}
+      <BackToTopButton />
     </div>
   );
 };
