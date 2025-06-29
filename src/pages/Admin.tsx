@@ -4,17 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LogOut, MapPin, Plus, Edit, Trash2, Save, X, Users, Eye } from 'lucide-react';
+import { LogOut, MapPin, Plus, Edit, Trash2, Save, X, Users, Eye, BookOpen } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Category, TouristSpot, User } from '@/types';
+import { Category, TouristSpot, User, Lesson } from '@/types';
 
 const Admin = () => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [spots, setSpots] = useState<TouristSpot[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [newCategory, setNewCategory] = useState({ name: '', icon: '' });
   const [newSpot, setNewSpot] = useState({ 
     title: '', 
@@ -24,11 +25,16 @@ const Admin = () => {
     image: '',
     googleMapsLink: '',
     socialMediaLink: '',
-    whatsappLink: ''
+    whatsappLink: '',
+    siteLink: ''
   });
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' as 'admin' | 'user' });
+  const [newLesson, setNewLesson] = useState({ title: '', description: '', youtubeLink: '' });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingSpot, setEditingSpot] = useState<TouristSpot | null>(null);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string>('');
+  const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -53,6 +59,7 @@ const Admin = () => {
     const savedCategories = localStorage.getItem('categories');
     const savedSpots = localStorage.getItem('spots');
     const savedUsers = localStorage.getItem('users');
+    const savedLessons = localStorage.getItem('lessons');
 
     if (savedCategories) {
       setCategories(JSON.parse(savedCategories));
@@ -97,6 +104,10 @@ const Admin = () => {
       setUsers(defaultUsers);
       localStorage.setItem('users', JSON.stringify(defaultUsers));
     }
+
+    if (savedLessons) {
+      setLessons(JSON.parse(savedLessons));
+    }
   }, [navigate]);
 
   const handleLogout = () => {
@@ -122,6 +133,11 @@ const Admin = () => {
   const saveUsers = (newUsers: User[]) => {
     setUsers(newUsers);
     localStorage.setItem('users', JSON.stringify(newUsers));
+  };
+
+  const saveLessons = (newLessons: Lesson[]) => {
+    setLessons(newLessons);
+    localStorage.setItem('lessons', JSON.stringify(newLessons));
   };
 
   const addCategory = () => {
@@ -184,7 +200,8 @@ const Admin = () => {
       image: newSpot.image || '📍',
       googleMapsLink: newSpot.googleMapsLink || undefined,
       socialMediaLink: newSpot.socialMediaLink || undefined,
-      whatsappLink: newSpot.whatsappLink || undefined
+      whatsappLink: newSpot.whatsappLink || undefined,
+      siteLink: newSpot.siteLink || undefined
     };
     
     saveSpots([...spots, spot]);
@@ -196,7 +213,8 @@ const Admin = () => {
       image: '',
       googleMapsLink: '',
       socialMediaLink: '',
-      whatsappLink: ''
+      whatsappLink: '',
+      siteLink: ''
     });
     toast({
       title: "Local adicionado",
@@ -216,7 +234,8 @@ const Admin = () => {
         ...editingSpot,
         googleMapsLink: editingSpot.googleMapsLink || undefined,
         socialMediaLink: editingSpot.socialMediaLink || undefined,
-        whatsappLink: editingSpot.whatsappLink || undefined
+        whatsappLink: editingSpot.whatsappLink || undefined,
+        siteLink: editingSpot.siteLink || undefined
       } : s
     );
     saveSpots(updatedSpots);
@@ -275,13 +294,24 @@ const Admin = () => {
   };
 
   const resetUserPassword = (userId: string) => {
+    if (!newPassword.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite uma nova senha!",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const updatedUsers = users.map(u => 
-      u.id === userId ? { ...u, password: 'novasenha123' } : u
+      u.id === userId ? { ...u, password: newPassword } : u
     );
     saveUsers(updatedUsers);
+    setResetPasswordUserId('');
+    setNewPassword('');
     toast({
       title: "Senha redefinida",
-      description: "Nova senha: novasenha123",
+      description: `Nova senha definida com sucesso!`,
     });
   };
 
@@ -289,6 +319,52 @@ const Admin = () => {
     // Temporarily set user context for viewing
     localStorage.setItem('viewingUser', JSON.stringify(user));
     navigate('/dashboard?view=admin');
+  };
+
+  // Lesson functions
+  const addLesson = () => {
+    if (!newLesson.title.trim() || !newLesson.youtubeLink.trim()) return;
+    
+    const lesson: Lesson = {
+      id: Date.now().toString(),
+      title: newLesson.title,
+      description: newLesson.description,
+      youtubeLink: newLesson.youtubeLink
+    };
+    
+    saveLessons([...lessons, lesson]);
+    setNewLesson({ title: '', description: '', youtubeLink: '' });
+    toast({
+      title: "Aula adicionada",
+      description: `Aula "${lesson.title}" foi criada com sucesso!`,
+    });
+  };
+
+  const editLesson = (lesson: Lesson) => {
+    setEditingLesson(lesson);
+  };
+
+  const saveEditLesson = () => {
+    if (!editingLesson || !editingLesson.title.trim() || !editingLesson.youtubeLink.trim()) return;
+    
+    const updatedLessons = lessons.map(l => 
+      l.id === editingLesson.id ? editingLesson : l
+    );
+    saveLessons(updatedLessons);
+    setEditingLesson(null);
+    toast({
+      title: "Aula atualizada",
+      description: "Aula foi editada com sucesso!",
+    });
+  };
+
+  const deleteLesson = (id: string) => {
+    const updatedLessons = lessons.filter(l => l.id !== id);
+    saveLessons(updatedLessons);
+    toast({
+      title: "Aula removida",
+      description: "Aula foi removida com sucesso.",
+    });
   };
 
   return (
@@ -302,7 +378,7 @@ const Admin = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Você em Maceió - Administração</h1>
-              <p className="text-sm text-gray-600">Gerenciar usuários, categorias e locais</p>
+              <p className="text-sm text-gray-600">Gerenciar usuários, categorias, locais e aulas</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -326,10 +402,11 @@ const Admin = () => {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="users">Usuários</TabsTrigger>
             <TabsTrigger value="categories">Categorias</TabsTrigger>
             <TabsTrigger value="spots">Locais</TabsTrigger>
+            <TabsTrigger value="lessons">Aulas</TabsTrigger>
           </TabsList>
           
           {/* Gerenciar Usuários */}
@@ -409,13 +486,42 @@ const Admin = () => {
                             <Eye className="w-4 h-4" />
                             <span>Ver Dashboard</span>
                           </Button>
-                          <Button
-                            onClick={() => resetUserPassword(user.id)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Redefinir Senha
-                          </Button>
+                          {resetPasswordUserId === user.id ? (
+                            <div className="flex items-center space-x-2">
+                              <Input
+                                type="password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="Nova senha"
+                                className="w-32"
+                              />
+                              <Button
+                                onClick={() => resetUserPassword(user.id)}
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <Save className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setResetPasswordUserId('');
+                                  setNewPassword('');
+                                }}
+                                variant="outline"
+                                size="sm"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              onClick={() => setResetPasswordUserId(user.id)}
+                              variant="outline"
+                              size="sm"
+                            >
+                              Redefinir Senha
+                            </Button>
+                          )}
                           <Button
                             onClick={() => deleteUser(user.id)}
                             variant="outline"
@@ -610,7 +716,7 @@ const Admin = () => {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="spot-social">Link das Redes Sociais</Label>
+                        <Label htmlFor="spot-social">Link do Instagram</Label>
                         <Input
                           id="spot-social"
                           value={newSpot.socialMediaLink}
@@ -625,6 +731,15 @@ const Admin = () => {
                           value={newSpot.whatsappLink}
                           onChange={(e) => setNewSpot({ ...newSpot, whatsappLink: e.target.value })}
                           placeholder="https://wa.me/..."
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="spot-site">Link do Site</Label>
+                        <Input
+                          id="spot-site"
+                          value={newSpot.siteLink}
+                          onChange={(e) => setNewSpot({ ...newSpot, siteLink: e.target.value })}
+                          placeholder="https://exemplo.com..."
                         />
                       </div>
                     </div>
@@ -703,12 +818,17 @@ const Admin = () => {
                                     <Input
                                       value={editingSpot.socialMediaLink || ''}
                                       onChange={(e) => setEditingSpot({ ...editingSpot, socialMediaLink: e.target.value })}
-                                      placeholder="Link Redes Sociais"
+                                      placeholder="Link Instagram"
                                     />
                                     <Input
                                       value={editingSpot.whatsappLink || ''}
                                       onChange={(e) => setEditingSpot({ ...editingSpot, whatsappLink: e.target.value })}
                                       placeholder="Link WhatsApp"
+                                    />
+                                    <Input
+                                      value={editingSpot.siteLink || ''}
+                                      onChange={(e) => setEditingSpot({ ...editingSpot, siteLink: e.target.value })}
+                                      placeholder="Link Site"
                                     />
                                   </div>
                                   <div className="flex space-x-2">
@@ -751,11 +871,12 @@ const Admin = () => {
                                     </div>
                                   </div>
                                   <p className="text-sm text-gray-700 mb-2">{spot.description}</p>
-                                  {(spot.googleMapsLink || spot.socialMediaLink || spot.whatsappLink) && (
+                                  {(spot.googleMapsLink || spot.socialMediaLink || spot.whatsappLink || spot.siteLink) && (
                                     <div className="flex flex-wrap gap-1 text-xs">
                                       {spot.googleMapsLink && <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">📍 Maps</span>}
-                                      {spot.socialMediaLink && <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">📱 Social</span>}
+                                      {spot.socialMediaLink && <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">📱 Instagram</span>}
                                       {spot.whatsappLink && <span className="bg-green-100 text-green-700 px-2 py-1 rounded">💬 WhatsApp</span>}
+                                      {spot.siteLink && <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded">🌐 Site</span>}
                                     </div>
                                   )}
                                 </>
@@ -766,6 +887,138 @@ const Admin = () => {
                       </div>
                     );
                   })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Gerenciar Aulas */}
+          <TabsContent value="lessons">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <BookOpen className="w-5 h-5" />
+                  <span>Gerenciar Aulas</span>
+                </CardTitle>
+                <CardDescription>
+                  Adicione e gerencie aulas educativas do YouTube
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div>
+                    <Label htmlFor="lesson-title">Título da Aula</Label>
+                    <Input
+                      id="lesson-title"
+                      value={newLesson.title}
+                      onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
+                      placeholder="Ex: Como usar o sistema"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lesson-description">Descrição</Label>
+                    <Input
+                      id="lesson-description"
+                      value={newLesson.description}
+                      onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
+                      placeholder="Breve descrição da aula"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lesson-youtube">Link do YouTube</Label>
+                    <Input
+                      id="lesson-youtube"
+                      value={newLesson.youtubeLink}
+                      onChange={(e) => setNewLesson({ ...newLesson, youtubeLink: e.target.value })}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-center mb-6">
+                  <Button onClick={addLesson} className="w-full md:w-auto">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Aula
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {lessons.map((lesson) => (
+                    <Card key={lesson.id} className="p-4">
+                      {editingLesson?.id === lesson.id ? (
+                        <div className="space-y-3">
+                          <Input
+                            value={editingLesson.title}
+                            onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
+                            placeholder="Título da aula"
+                          />
+                          <Input
+                            value={editingLesson.description}
+                            onChange={(e) => setEditingLesson({ ...editingLesson, description: e.target.value })}
+                            placeholder="Descrição"
+                          />
+                          <Input
+                            value={editingLesson.youtubeLink}
+                            onChange={(e) => setEditingLesson({ ...editingLesson, youtubeLink: e.target.value })}
+                            placeholder="Link do YouTube"
+                          />
+                          <div className="flex space-x-2">
+                            <Button onClick={saveEditLesson} size="sm" className="flex-1">
+                              <Save className="w-4 h-4 mr-1" />
+                              Salvar
+                            </Button>
+                            <Button onClick={() => setEditingLesson(null)} variant="outline" size="sm">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <BookOpen className="w-8 h-8 text-red-600" />
+                            <div>
+                              <h4 className="font-medium">{lesson.title}</h4>
+                              <p className="text-sm text-gray-600">{lesson.description}</p>
+                              <a
+                                href={lesson.youtubeLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:underline truncate block max-w-xs"
+                              >
+                                {lesson.youtubeLink}
+                              </a>
+                            </div>
+                          </div>
+                          <div className="flex space-x-1">
+                            <Button
+                              onClick={() => editLesson(lesson)}
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => deleteLesson(lesson.id)}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                  
+                  {lessons.length === 0 && (
+                    <div className="text-center py-8">
+                      <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-600">Nenhuma aula adicionada ainda</p>
+                      <p className="text-sm text-gray-500">Adicione aulas do YouTube para ajudar os usuários</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

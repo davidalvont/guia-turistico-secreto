@@ -51,7 +51,13 @@ const Login = () => {
         title: "Login realizado com sucesso!",
         description: user.role === 'admin' ? "Bem-vindo, Administrador!" : "Bem-vindo!",
       });
-      navigate('/dashboard');
+      
+      // Redirecionar admin para área administrativa
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       toast({
         title: "Erro no login",
@@ -99,15 +105,6 @@ const Login = () => {
               Entrar
             </Button>
           </form>
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-            <p className="font-medium mb-2">Sistema de usuários:</p>
-            <p><strong>Admin:</strong> Gerencia usuários, categorias e locais</p>
-            <p><strong>Usuário:</strong> Marca locais como visitados</p>
-            <p className="mt-2 text-xs text-gray-500">
-              Credenciais padrão: admin/admin123 ou usuario/user123
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

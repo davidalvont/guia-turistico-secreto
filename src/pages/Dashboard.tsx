@@ -1,11 +1,12 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, MapPin, Star, Settings, Eye, ExternalLink, MessageCircle } from 'lucide-react';
+import { LogOut, MapPin, Star, Settings, Eye, ExternalLink, MessageCircle, BookOpen, Globe } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BackToTopButton from '@/components/BackToTopButton';
-import { Category, TouristSpot, User } from '@/types';
+import { Category, TouristSpot, User, Lesson } from '@/types';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ const Dashboard = () => {
   const [visitedSpots, setVisitedSpots] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<Category[]>([]);
   const [spots, setSpots] = useState<TouristSpot[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminViewing, setIsAdminViewing] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -48,9 +50,10 @@ const Dashboard = () => {
       }
     }
 
-    // Carregar categorias e spots
+    // Carregar categorias, spots e aulas
     const savedCategories = localStorage.getItem('categories');
     const savedSpots = localStorage.getItem('spots');
+    const savedLessons = localStorage.getItem('lessons');
 
     if (savedCategories) {
       setCategories(JSON.parse(savedCategories));
@@ -58,6 +61,10 @@ const Dashboard = () => {
 
     if (savedSpots) {
       setSpots(JSON.parse(savedSpots));
+    }
+
+    if (savedLessons) {
+      setLessons(JSON.parse(savedLessons));
     }
   }, [navigate, location]);
 
@@ -112,6 +119,10 @@ const Dashboard = () => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const openLesson = (youtubeLink: string) => {
+    window.open(youtubeLink, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
       {/* Header */}
@@ -121,18 +132,32 @@ const Dashboard = () => {
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
               <MapPin className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">
-                Você em Maceió
-                {isAdminViewing && currentUser && (
-                  <span className="text-sm text-orange-600 ml-2">
-                    (Visualizando como: {currentUser.username})
-                  </span>
-                )}
-              </h1>
-              <p className="text-sm text-gray-600">
-                {isAdminViewing ? 'Visualização administrativa' : 'Descubra Maceió como um Local'}
-              </p>
+            <div className="flex items-center space-x-3">
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Você em Maceió
+                  {isAdminViewing && currentUser && (
+                    <span className="text-sm text-orange-600 ml-2">
+                      (Visualizando como: {currentUser.username})
+                    </span>
+                  )}
+                </h1>
+                <p className="text-sm text-gray-600">
+                  {isAdminViewing ? 'Visualização administrativa' : 'Descubra Maceió como um Local'}
+                </p>
+              </div>
+              {/* Botão de Aulas */}
+              {lessons.length > 0 && (
+                <Button
+                  onClick={() => openLesson(lessons[0].youtubeLink)}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Aulas</span>
+                </Button>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -291,7 +316,7 @@ const Dashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {categorySpots.map((spot) => {
                     const isVisited = visitedSpots.has(spot.id);
-                    const hasLinks = spot.googleMapsLink || spot.socialMediaLink || spot.whatsappLink;
+                    const hasLinks = spot.googleMapsLink || spot.socialMediaLink || spot.whatsappLink || spot.siteLink;
                     
                     return (
                       <Card 
@@ -346,7 +371,7 @@ const Dashboard = () => {
                                   className="flex items-center space-x-1 text-purple-600 hover:text-purple-700"
                                 >
                                   <Star className="w-3 h-3" />
-                                  <span>Social</span>
+                                  <span>Instagram</span>
                                   <ExternalLink className="w-3 h-3" />
                                 </Button>
                               )}
@@ -359,6 +384,18 @@ const Dashboard = () => {
                                 >
                                   <MessageCircle className="w-3 h-3" />
                                   <span>WhatsApp</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </Button>
+                              )}
+                              {spot.siteLink && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openExternalLink(spot.siteLink!)}
+                                  className="flex items-center space-x-1 text-orange-600 hover:text-orange-700"
+                                >
+                                  <Globe className="w-3 h-3" />
+                                  <span>Site</span>
                                   <ExternalLink className="w-3 h-3" />
                                 </Button>
                               )}

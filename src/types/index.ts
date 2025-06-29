@@ -15,6 +15,7 @@ export interface TouristSpot {
   googleMapsLink?: string;
   socialMediaLink?: string;
   whatsappLink?: string;
+  siteLink?: string;
 }
 
 export interface User {
@@ -23,4 +24,11 @@ export interface User {
   password: string;
   role: 'admin' | 'user';
   visitedSpots: string[];
+}
+
+export interface Lesson {
+  id: string;
+  title: string;
+  description: string;
+  youtubeLink: string;
 }
