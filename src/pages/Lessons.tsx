@@ -53,7 +53,7 @@ const Lessons = () => {
               <BookOpen className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Ambiente de Estudos</h1>
+              <h1 className="text-xl font-bold text-gray-900">O que você precisa Saber</h1>
               <p className="text-sm text-gray-600">Aprenda sobre Maceió</p>
             </div>
           </div>
@@ -63,7 +63,8 @@ const Lessons = () => {
             className="flex items-center space-x-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Voltar ao Dashboard</span>
+            <span className="hidden sm:inline">Voltar ao Dashboard</span>
+            <span className="sm:hidden">Voltar</span>
           </Button>
         </div>
       </header>
@@ -86,7 +87,7 @@ const Lessons = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <BookOpen className="w-5 h-5" />
-                    <span>Aulas Disponíveis</span>
+                    <span>Aulas Importantes</span>
                   </CardTitle>
                   <CardDescription>
                     Selecione uma aula para assistir
