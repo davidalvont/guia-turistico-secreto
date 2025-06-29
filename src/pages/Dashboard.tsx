@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -119,8 +118,8 @@ const Dashboard = () => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const openLesson = (youtubeLink: string) => {
-    window.open(youtubeLink, '_blank', 'noopener,noreferrer');
+  const handleLessonsClick = () => {
+    navigate('/lessons');
   };
 
   return (
@@ -149,7 +148,7 @@ const Dashboard = () => {
               {/* Botão de Aulas */}
               {lessons.length > 0 && (
                 <Button
-                  onClick={() => openLesson(lessons[0].youtubeLink)}
+                  onClick={handleLessonsClick}
                   variant="outline"
                   size="sm"
                   className="flex items-center space-x-2 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
