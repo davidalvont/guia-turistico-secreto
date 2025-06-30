@@ -3,109 +3,189 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, MapPin, Star, Settings, Eye, ExternalLink, MessageCircle, BookOpen, Globe } from 'lucide-react';
+import { LogOut, MapPin, Star, Settings, Eye, ExternalLink, MessageCircle, BookOpen, Globe, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import BackToTopButton from '@/components/BackToTopButton';
-import { Category, TouristSpot, User, Lesson } from '@/types';
+import { Category, TouristSpot, Lesson, Profile } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { User, Session } from '@supabase/supabase-js';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [visitedSpots, setVisitedSpots] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<Category[]>([]);
   const [spots, setSpots] = useState<TouristSpot[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminViewing, setIsAdminViewing] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem('isAuthenticated');
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    
-    // Verificar se é admin
-    const userRole = localStorage.getItem('userRole');
-    const isAdminUser = userRole === 'admin';
-    setIsAdmin(isAdminUser);
-    
-    // Verificar se admin está visualizando dashboard de usuário
-    const isAdminViewMode = location.search.includes('view=admin');
-    const viewingUser = localStorage.getItem('viewingUser');
-    
-    if (isAdminViewMode && viewingUser && isAdminUser) {
-      const user = JSON.parse(viewingUser);
-      setCurrentUser(user);
-      setIsAdminViewing(true);
-      setVisitedSpots(new Set(user.visitedSpots));
-      localStorage.removeItem('viewingUser'); // Limpar após usar
-    } else {
-      // Modo normal - carregar dados do usuário atual
-      setIsAdminViewing(false);
-      const savedVisited = localStorage.getItem('visitedSpots');
-      if (savedVisited) {
-        setVisitedSpots(new Set(JSON.parse(savedVisited)));
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (!session?.user) {
+          navigate('/auth');
+        }
       }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (!session?.user) {
+        navigate('/auth');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (user) {
+      loadUserData();
     }
+  }, [user]);
 
-    // Carregar categorias, spots e aulas
-    const savedCategories = localStorage.getItem('categories');
-    const savedSpots = localStorage.getItem('spots');
-    const savedLessons = localStorage.getItem('lessons');
+  const loadUserData = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    
+    try {
+      // Load user profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-    if (savedCategories) {
-      setCategories(JSON.parse(savedCategories));
+      if (profileError) throw profileError;
+      
+      setProfile(profileData);
+      setIsAdmin(profileData.role === 'admin');
+
+      // Load categories
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name');
+
+      if (categoriesError) throw categoriesError;
+      setCategories(categoriesData || []);
+
+      // Load tourist spots
+      const { data: spotsData, error: spotsError } = await supabase
+        .from('tourist_spots')
+        .select('*')
+        .order('title');
+
+      if (spotsError) throw spotsError;
+      setSpots(spotsData || []);
+
+      // Load lessons
+      const { data: lessonsData, error: lessonsError } = await supabase
+        .from('lessons')
+        .select('*')
+        .order('created_at');
+
+      if (lessonsError) throw lessonsError;
+      setLessons(lessonsData || []);
+
+      // Load visited spots
+      const { data: visitedData, error: visitedError } = await supabase
+        .from('visited_spots')
+        .select('spot_id')
+        .eq('user_id', user.id);
+
+      if (visitedError) throw visitedError;
+      setVisitedSpots(new Set(visitedData?.map(v => v.spot_id) || []));
+
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Tente novamente em alguns instantes.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (savedSpots) {
-      setSpots(JSON.parse(savedSpots));
-    }
-
-    if (savedLessons) {
-      setLessons(JSON.parse(savedLessons));
-    }
-  }, [navigate, location]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('viewingUser');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     toast({
       title: "Logout realizado",
       description: "Até logo!",
     });
-    navigate('/login');
+    navigate('/');
   };
 
-  const toggleVisited = (spotId: string) => {
-    // Só permite marcar/desmarcar se não for admin visualizando
-    if (isAdminViewing) {
+  const toggleVisited = async (spotId: string) => {
+    if (!user || isAdminViewing) {
       toast({
         title: "Ação não permitida",
-        description: "Administradores não podem marcar locais como visitados para outros usuários.",
+        description: "Você precisa estar logado para marcar locais como visitados.",
         variant: "destructive"
       });
       return;
     }
 
-    const newVisited = new Set(visitedSpots);
-    if (newVisited.has(spotId)) {
-      newVisited.delete(spotId);
+    const isCurrentlyVisited = visitedSpots.has(spotId);
+    
+    try {
+      if (isCurrentlyVisited) {
+        // Remove from visited
+        const { error } = await supabase
+          .from('visited_spots')
+          .delete()
+          .match({ user_id: user.id, spot_id: spotId });
+
+        if (error) throw error;
+
+        const newVisited = new Set(visitedSpots);
+        newVisited.delete(spotId);
+        setVisitedSpots(newVisited);
+        
+        toast({
+          title: "Removido dos visitados",
+          description: "Local marcado como não visitado",
+        });
+      } else {
+        // Add to visited
+        const { error } = await supabase
+          .from('visited_spots')
+          .insert({ user_id: user.id, spot_id: spotId });
+
+        if (error) throw error;
+
+        const newVisited = new Set(visitedSpots);
+        newVisited.add(spotId);
+        setVisitedSpots(newVisited);
+        
+        toast({
+          title: "Marcado como visitado!",
+          description: "Parabéns por conhecer este lugar!",
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling visited spot:', error);
       toast({
-        title: "Removido dos visitados",
-        description: "Local marcado como não visitado",
-      });
-    } else {
-      newVisited.add(spotId);
-      toast({
-        title: "Marcado como visitado!",
-        description: "Parabéns por conhecer este lugar!",
+        title: "Erro",
+        description: "Não foi possível atualizar o status do local.",
+        variant: "destructive"
       });
     }
-    setVisitedSpots(newVisited);
-    localStorage.setItem('visitedSpots', JSON.stringify(Array.from(newVisited)));
   };
 
   const scrollToCategory = (categoryId: string) => {
@@ -123,6 +203,17 @@ const Dashboard = () => {
     navigate('/lessons');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
       {/* Header - Fixado */}
@@ -136,14 +227,14 @@ const Dashboard = () => {
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
                   Você em Maceió
-                  {isAdminViewing && currentUser && (
-                    <span className="text-sm text-orange-600 ml-2">
-                      (Visualizando como: {currentUser.username})
+                  {profile && (
+                    <span className="text-sm text-gray-600 ml-2">
+                      (Olá, {profile.username}!)
                     </span>
                   )}
                 </h1>
                 <p className="text-sm text-gray-600">
-                  {isAdminViewing ? 'Visualização administrativa' : 'Descubra Maceió como um Local'}
+                  Descubra Maceió como um Local
                 </p>
               </div>
               {/* Botão de Aulas Importantes */}
@@ -161,18 +252,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4">
-            {isAdminViewing && (
-              <Button 
-                onClick={() => navigate('/admin')}
-                variant="outline"
-                size="sm"
-                className="flex items-center space-x-2"
-              >
-                <Eye className="w-4 h-4" />
-                <span className="hidden sm:inline">Voltar para Admin</span>
-              </Button>
-            )}
-            {isAdmin && !isAdminViewing && (
+            {isAdmin && (
               <Button 
                 onClick={() => navigate('/admin')}
                 variant="outline"
@@ -196,26 +276,8 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Alert for admin viewing mode */}
-      {isAdminViewing && (
-        <div className="bg-orange-100 border-l-4 border-orange-500 p-4 fixed top-16 left-0 right-0 z-40">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <Eye className="h-5 w-5 text-orange-500" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-orange-700">
-                  Você está visualizando o dashboard como administrador. Não é possível marcar locais como visitados neste modo.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content - Com padding-top para compensar o header fixo */}
-      <main className={`max-w-6xl mx-auto px-4 py-8 ${isAdminViewing ? 'pt-32' : 'pt-24'}`}>
+      {/* Main Content */}
+      <main className="max-w-6xl mx-auto px-4 py-8 pt-24">
         {/* Stats */}
         <div className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -278,7 +340,7 @@ const Dashboard = () => {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {categories.map((category) => {
-                  const categorySpots = spots.filter(spot => spot.categoryId === category.id);
+                  const categorySpots = spots.filter(spot => spot.category_id === category.id);
                   if (categorySpots.length === 0) return null;
                   
                   return (
@@ -305,7 +367,7 @@ const Dashboard = () => {
         {/* Tourist Spots por Categoria */}
         <div className="space-y-8">
           {categories.map((category) => {
-            const categorySpots = spots.filter(spot => spot.categoryId === category.id);
+            const categorySpots = spots.filter(spot => spot.category_id === category.id);
             if (categorySpots.length === 0) return null;
 
             return (
@@ -319,7 +381,7 @@ const Dashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {categorySpots.map((spot) => {
                     const isVisited = visitedSpots.has(spot.id);
-                    const hasLinks = spot.googleMapsLink || spot.socialMediaLink || spot.whatsappLink || spot.siteLink;
+                    const hasLinks = spot.google_maps_link || spot.social_media_link || spot.whatsapp_link || spot.site_link;
                     
                     return (
                       <Card 
@@ -354,11 +416,11 @@ const Dashboard = () => {
                           {/* Links externos */}
                           {hasLinks && (
                             <div className="flex flex-wrap gap-2 mb-3">
-                              {spot.googleMapsLink && (
+                              {spot.google_maps_link && (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => openExternalLink(spot.googleMapsLink!)}
+                                  onClick={() => openExternalLink(spot.google_maps_link!)}
                                   className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
                                 >
                                   <MapPin className="w-3 h-3" />
@@ -366,11 +428,11 @@ const Dashboard = () => {
                                   <ExternalLink className="w-3 h-3" />
                                 </Button>
                               )}
-                              {spot.socialMediaLink && (
+                              {spot.social_media_link && (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => openExternalLink(spot.socialMediaLink!)}
+                                  onClick={() => openExternalLink(spot.social_media_link!)}
                                   className="flex items-center space-x-1 text-purple-600 hover:text-purple-700"
                                 >
                                   <Star className="w-3 h-3" />
@@ -378,11 +440,11 @@ const Dashboard = () => {
                                   <ExternalLink className="w-3 h-3" />
                                 </Button>
                               )}
-                              {spot.whatsappLink && (
+                              {spot.whatsapp_link && (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => openExternalLink(spot.whatsappLink!)}
+                                  onClick={() => openExternalLink(spot.whatsapp_link!)}
                                   className="flex items-center space-x-1 text-green-600 hover:text-green-700"
                                 >
                                   <MessageCircle className="w-3 h-3" />
@@ -390,11 +452,11 @@ const Dashboard = () => {
                                   <ExternalLink className="w-3 h-3" />
                                 </Button>
                               )}
-                              {spot.siteLink && (
+                              {spot.site_link && (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => openExternalLink(spot.siteLink!)}
+                                  onClick={() => openExternalLink(spot.site_link!)}
                                   className="flex items-center space-x-1 text-orange-600 hover:text-orange-700"
                                 >
                                   <Globe className="w-3 h-3" />
@@ -411,20 +473,15 @@ const Dashboard = () => {
                               onClick={() => toggleVisited(spot.id)}
                               variant={isVisited ? "default" : "outline"}
                               size="sm"
-                              disabled={isAdminViewing}
                               className={`w-full ${
                                 isVisited 
                                   ? 'bg-green-600 hover:bg-green-700 text-white' 
-                                  : isAdminViewing 
-                                    ? 'cursor-not-allowed opacity-50'
-                                    : 'hover:bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'hover:bg-blue-50 text-blue-700 border-blue-200'
                               }`}
                             >
                               {isVisited 
                                 ? 'Visitado ✓' 
-                                : isAdminViewing 
-                                  ? 'Visualização apenas' 
-                                  : 'Marcar como visitado'
+                                : 'Marcar como visitado'
                               }
                             </Button>
                           </div>

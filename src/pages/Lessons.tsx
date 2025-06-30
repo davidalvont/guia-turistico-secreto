@@ -3,34 +3,80 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BookOpen, Play, MapPin } from 'lucide-react';
+import { ArrowLeft, BookOpen, Play, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Lesson } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { User, Session } from '@supabase/supabase-js';
 
 const Lessons = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar se está autenticado
-    const isAuthenticated = localStorage.getItem('isAuthenticated');
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (!session?.user) {
+          navigate('/auth');
+        }
+      }
+    );
 
-    // Carregar aulas do localStorage
-    const savedLessons = localStorage.getItem('lessons');
-    if (savedLessons) {
-      const lessonsData = JSON.parse(savedLessons);
-      setLessons(lessonsData);
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (!session?.user) {
+        navigate('/auth');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (user) {
+      loadLessons();
+    }
+  }, [user]);
+
+  const loadLessons = async () => {
+    setLoading(true);
+    
+    try {
+      const { data: lessonsData, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .order('created_at');
+
+      if (error) throw error;
+      
+      setLessons(lessonsData || []);
+      
       // Selecionar primeira aula automaticamente se existir
-      if (lessonsData.length > 0) {
+      if (lessonsData && lessonsData.length > 0) {
         setSelectedLesson(lessonsData[0]);
       }
+    } catch (error) {
+      console.error('Error loading lessons:', error);
+      toast({
+        title: "Erro ao carregar aulas",
+        description: "Tente novamente em alguns instantes.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [navigate]);
+  };
 
   const handleBackToDashboard = () => {
     navigate('/dashboard');
@@ -42,6 +88,17 @@ const Lessons = () => {
                    youtubeLink.split('youtu.be/')[1]?.split('?')[0];
     return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Carregando aulas...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
@@ -131,9 +188,9 @@ const Lessons = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                      {getYouTubeEmbedUrl(selectedLesson.youtubeLink) ? (
+                      {getYouTubeEmbedUrl(selectedLesson.youtube_link) ? (
                         <iframe
-                          src={getYouTubeEmbedUrl(selectedLesson.youtubeLink)}
+                          src={getYouTubeEmbedUrl(selectedLesson.youtube_link)}
                           title={selectedLesson.title}
                           className="w-full h-full"
                           frameBorder="0"

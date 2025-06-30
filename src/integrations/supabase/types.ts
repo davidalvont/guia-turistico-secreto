@@ -9,7 +9,163 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          icon: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lessons: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          title: string
+          updated_at: string
+          youtube_link: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          title: string
+          updated_at?: string
+          youtube_link: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          youtube_link?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          role?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      tourist_spots: {
+        Row: {
+          category_id: string
+          created_at: string
+          description: string
+          google_maps_link: string | null
+          id: string
+          image: string
+          rating: number
+          site_link: string | null
+          social_media_link: string | null
+          title: string
+          updated_at: string
+          whatsapp_link: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          description: string
+          google_maps_link?: string | null
+          id?: string
+          image: string
+          rating?: number
+          site_link?: string | null
+          social_media_link?: string | null
+          title: string
+          updated_at?: string
+          whatsapp_link?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          description?: string
+          google_maps_link?: string | null
+          id?: string
+          image?: string
+          rating?: number
+          site_link?: string | null
+          social_media_link?: string | null
+          title?: string
+          updated_at?: string
+          whatsapp_link?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tourist_spots_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visited_spots: {
+        Row: {
+          id: string
+          spot_id: string
+          user_id: string
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          spot_id: string
+          user_id: string
+          visited_at?: string
+        }
+        Update: {
+          id?: string
+          spot_id?: string
+          user_id?: string
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visited_spots_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: false
+            referencedRelation: "tourist_spots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
