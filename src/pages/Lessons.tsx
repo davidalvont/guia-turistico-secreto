@@ -45,8 +45,8 @@ const Lessons = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
-      {/* Header - Sempre visível */}
-      <header className="bg-white shadow-sm border-b">
+      {/* Header - Fixado */}
+      <header className="bg-white shadow-sm border-b fixed top-0 left-0 right-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
@@ -54,7 +54,7 @@ const Lessons = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">O que você precisa Saber</h1>
-              <p className="text-sm text-gray-600">Aprenda sobre Maceió</p>
+              <p className="text-sm text-gray-600">Assista para aproveitar melhor</p>
             </div>
           </div>
           <Button 
@@ -69,7 +69,7 @@ const Lessons = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8 pt-24">
         {lessons.length === 0 ? (
           <div className="text-center py-12">
             <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />

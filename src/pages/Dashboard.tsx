@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -124,8 +125,8 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
-      {/* Header - Sempre visível */}
-      <header className="bg-white shadow-sm border-b">
+      {/* Header - Fixado */}
+      <header className="bg-white shadow-sm border-b fixed top-0 left-0 right-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
@@ -197,7 +198,7 @@ const Dashboard = () => {
 
       {/* Alert for admin viewing mode */}
       {isAdminViewing && (
-        <div className="bg-orange-100 border-l-4 border-orange-500 p-4">
+        <div className="bg-orange-100 border-l-4 border-orange-500 p-4 fixed top-16 left-0 right-0 z-40">
           <div className="max-w-6xl mx-auto">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -213,8 +214,8 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Main Content */}
-      <main className={`max-w-6xl mx-auto px-4 py-8 ${isAdminViewing ? 'pt-8' : 'pt-8'}`}>
+      {/* Main Content - Com padding-top para compensar o header fixo */}
+      <main className={`max-w-6xl mx-auto px-4 py-8 ${isAdminViewing ? 'pt-32' : 'pt-24'}`}>
         {/* Stats */}
         <div className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
