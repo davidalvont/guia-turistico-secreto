@@ -19,12 +19,9 @@ const Index = () => {
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
             Descubra Maceió como um local. Explore os melhores lugares, restaurantes e experiências que a cidade tem a oferecer.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <Button asChild size="lg" className="text-lg px-8">
-              <Link to="/auth">Começar Agora</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="text-lg px-8">
-              <Link to="/login">Já tenho conta</Link>
+              <Link to="/login">Entrar no Sistema</Link>
             </Button>
           </div>
         </div>
@@ -80,12 +77,12 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="text-2xl">Pronto para explorar?</CardTitle>
               <CardDescription className="text-blue-100">
-                Junte-se a nós e descubra Maceió de uma forma completamente nova.
+                Entre com suas credenciais para descobrir Maceió de uma forma completamente nova.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button asChild size="lg" variant="secondary" className="text-lg px-8">
-                <Link to="/auth">Criar Conta Grátis</Link>
+                <Link to="/login">Entrar no Sistema</Link>
               </Button>
             </CardContent>
           </Card>
